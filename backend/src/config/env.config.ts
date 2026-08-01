@@ -14,6 +14,8 @@ const envSchema = z.object({
   DB_USER: z.string().default('moneto_admin'),
   DB_PASSWORD: z.string().default('MonetoSecurePassword2026!'),
   DB_NAME: z.string().default('moneto_dev'),
+  DATABASE_URL: z.string().default('postgresql://moneto_admin:MonetoSecurePassword2026!@localhost:5432/moneto_dev?schema=public'),
+  DIRECT_URL: z.string().optional(),
   JWT_SECRET: z.string().min(32).default('super_secret_moneto_jwt_access_key_change_in_production_2026'),
   JWT_EXPIRES_IN: z.string().default('15m'),
   JWT_REFRESH_SECRET: z.string().min(32).default('super_secret_moneto_jwt_refresh_key_change_in_production_2026'),
