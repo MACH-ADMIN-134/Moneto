@@ -5,6 +5,20 @@ All notable changes to the Moneto platform will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0-alpha] - 2026-08-02
+
+### Added
+- **Security Hardening**: Applied Helmet security headers (CSP, HSTS 1-year max-age, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`), strict CORS white-listing, rate limiting, and created [docs/SECURITY_REVIEW.md](docs/SECURITY_REVIEW.md).
+- **Request Correlation**: Created `requestId` middleware injecting unique UUID v4 tracking headers (`X-Request-ID` and `X-Correlation-ID`) across every HTTP lifecycle.
+- **Structured Winston Logging**: Updated `logger.ts` to output structured JSON logs with ISO timestamps, correlation ID context, and log level formatting.
+- **Observability Probes**: Added `/api/v1/health` (uptime & system info), `/api/v1/ready` (Prisma database probe), and `/api/v1/live` (process liveness probe).
+- **OpenAPI & Swagger UI**: Mounted interactive OpenAPI documentation at `/api/v1/docs` using `swagger-ui-express`.
+- **Vitest & Supertest Testing Framework**: Configured Vitest in `backend/` with automated integration tests for health probes (`health.test.ts`) and security headers (`security.test.ts`).
+- **Developer Tooling**: Created root `Makefile` (`make dev`, `make build`, `make test`), Windows PowerShell helper CLI (`scripts/moneto-helper.ps1`), `.commitlintrc.json`, and `.lintstagedrc.json`.
+- **CI Pipeline Enhancement**: Updated `.github/workflows/ci.yml` to automatically execute Vitest unit/integration tests during build verification.
+
+---
+
 ## [0.1.1-alpha] - 2026-08-02
 
 ### Added

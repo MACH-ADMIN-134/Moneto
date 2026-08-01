@@ -10,28 +10,42 @@
                                 |
                +----------------v-----------------+
                |        INTEGRATION TESTS         |
-               |   Jest / Supertest (moneto_test) |
+               |   Vitest + Supertest (API/HTTP)  |
                +----------------+-----------------+
                                 |
                +----------------v-----------------+
                |           UNIT TESTS             |
-               |      Jest / Vitest / Zod         |
+               |      Vitest / Zod Schemas        |
                +----------------------------------+
 ```
 
 ---
 
-## 🧪 Testing Guidelines & Environments
+## 🧪 Vitest Integration Test Framework
 
-1. **Unit Testing**:
-   - Backend logic, Zod validation schemas, utility functions, and password hashing helpers.
-   - Run command: `npm run test` inside `backend` or `frontend`.
+Moneto uses **Vitest** for fast unit and integration testing.
 
-2. **Integration Testing**:
-   - Uses dedicated `moneto_test` database instance.
-   - Cleans and re-seeds database tables between test suites.
-   - Tests REST endpoints, authentication token flow, and database triggers.
+### Test Directory Structure
+```text
+backend/
+├── vitest.config.ts
+└── src/
+    └── __tests__/
+        ├── health.test.ts      # Integration tests for /health, /ready, /live
+        └── security.test.ts    # Integration tests for Helmet security headers
+```
 
-3. **Static Analysis & Linting**:
-   - TypeScript strict mode compliance (`noImplicitAny`, `strictNullChecks`, `exactOptionalPropertyTypes`).
-   - ESLint and Prettier rules enforced in CI pipeline.
+### Running Tests
+```bash
+# Run tests inside backend/
+npm run test
+
+# Run tests with code coverage report
+npm run test:coverage
+
+# Run tests in watch mode
+npm run test:watch
+```
+
+### Continuous Integration (GitHub Actions)
+Vitest tests are automatically executed during every pull request and commit push via `.github/workflows/ci.yml`.

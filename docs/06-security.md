@@ -16,20 +16,24 @@ Moneto utilizes Argon2id with OWASP recommended high-security configuration:
 
 ---
 
-## 🔒 Defense-in-Depth Measures
+## 🔒 Defense-in-Depth & Hardening Measures
 
-1. **Helmet HTTP Headers**:
+1. **Helmet Security Stack**:
    - `Content-Security-Policy`: Restricts unauthorized script execution.
-   - `Strict-Transport-Security`: Enforces HSTS for 1 year.
+   - `Strict-Transport-Security`: Enforces HSTS for 1 year (`maxAge=31536000`).
    - `X-Frame-Options`: Set to `DENY` to eliminate clickjacking.
    - `X-Content-Type-Options`: Set to `nosniff`.
+   - `Referrer-Policy`: Set to `no-referrer-when-downgrade`.
 
-2. **Rate Limiting**:
+2. **Request ID Correlation**:
+   - Unique UUID v4 generated or propagated on every HTTP lifecycle (`X-Request-ID` and `X-Correlation-ID`).
+
+3. **Rate Limiting**:
    - Sensitive auth endpoints (`/auth/login`, `/auth/register`) limited to 5 requests per minute per IP address.
    - General API endpoints limited to 100 requests per 15-minute window.
 
-3. **Database Audit Logging**:
-   - Every state-mutating HTTP request (`POST`, `PUT`, `PATCH`, `DELETE`) writes an entry to `audit_logs` capturing user ID, IP address, user-agent, target endpoint, and execution timestamp.
+4. **Database Audit Logging**:
+   - Every state-mutating HTTP request (`POST`, `PUT`, `PATCH`, `DELETE`) writes a structured entry to `audit_logs` capturing user ID, IP address, correlation ID, user-agent, target endpoint, and execution timestamp.
 
-4. **Non-Root Container Execution**:
-   - All Docker images drop root privileges and execute as dedicated non-root OS users (`node` / `nginx`).
+5. **Security Audit Document**:
+   - Exhaustive DevSecOps security review available at [docs/SECURITY_REVIEW.md](SECURITY_REVIEW.md).

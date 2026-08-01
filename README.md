@@ -1,10 +1,11 @@
 # Moneto — Security-First Personal Finance Platform
 
-![Moneto Banner](https://img.shields.io/badge/Moneto-v0.1.0--alpha-10b981?style=for-the-badge&logo=shield)
+![Moneto Banner](https://img.shields.io/badge/Moneto-v0.2.0--alpha-10b981?style=for-the-badge&logo=shield)
 ![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
-![Security](https://img.shields.io/badge/Security-Argon2id%20%7C%20JWT-purple?style=for-the-badge)
+![Security](https://img.shields.io/badge/Security-Argon2id%20%7C%20JWT%20%7C%20Helmet-purple?style=for-the-badge)
 ![Stack](https://img.shields.io/badge/Stack-React%20%7C%20Node.js%20%7C%20PostgreSQL-darkgreen?style=for-the-badge)
 ![ORM](https://img.shields.io/badge/ORM-Prisma%20v5-2D3748?style=for-the-badge&logo=prisma)
+![Swagger](https://img.shields.io/badge/OpenAPI-Swagger%20UI-85EA2D?style=for-the-badge&logo=swagger)
 
 Moneto is an enterprise-grade, security-first personal finance platform built for seamless cross-platform financial tracking, budgeting, payable management, and lending analytics. 
 

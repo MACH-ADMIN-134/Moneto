@@ -1,8 +1,8 @@
 # Moneto — Project Status & Sprint Tracker
 
-**Current Phase**: Phase 0 — Foundation & Infrastructure Setup (Complete) + Prisma ORM Integration (Complete)
-**Version**: `v0.1.1-alpha`
-**Last Updated**: 2026-08-02
+**Current Phase**: Phase 0 — Foundation & Infrastructure Hardening Sprint (Complete)  
+**Version**: `v0.2.0-alpha`  
+**Last Updated**: 2026-08-02  
 
 ---
 
