@@ -13,6 +13,7 @@ import { errorHandler } from './middleware/errorHandler.middleware.js';
 
 // Import Module Routers
 import observabilityRoutes from './modules/observability/observability.routes.js';
+import featureFlagsRoutes from './modules/feature-flags/featureFlags.routes.js';
 import authRoutes from './modules/auth/auth.routes.js';
 import usersRoutes from './modules/users/users.routes.js';
 import dashboardRoutes from './modules/dashboard/dashboard.routes.js';
@@ -39,6 +40,7 @@ app.use(`${env.API_PREFIX}/docs`, swaggerUi.serve, swaggerUi.setup(openApiSpec))
 
 // Mount Observability & Health Routes (/health, /ready, /live)
 app.use(env.API_PREFIX, observabilityRoutes);
+app.use(`${env.API_PREFIX}/feature-flags`, featureFlagsRoutes);
 
 // Mount Application Module Routes
 app.use(`${env.API_PREFIX}/auth`, authRoutes);
