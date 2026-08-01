@@ -5,6 +5,23 @@ All notable changes to the Moneto platform will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0-alpha] - 2026-08-02 — Sprint 1: Identity & Access Layer
+
+### Added
+- **Authentication Engine**: Fully integrated Argon2id password hashing and dual-JWT token rotation (`user_sessions` tracking with SHA-256 token hash validation, IP/user-agent tracking, session revocation).
+- **User Governance & Profile**:
+  - Get and update user profile details (`GET /users/me`, `PUT /users/me`).
+  - Argon2id password change workflow (`POST /users/me/change-password`) with automatic session revocation.
+  - User preference and theme settings management (`PUT /users/me/preferences`).
+  - Local avatar file storage abstraction (`StorageService` uploading to `/uploads/avatars/`).
+  - Active session management (`GET /users/me/sessions`, `POST /users/me/sessions/revoke-all`).
+- **RBAC Authorization**: Implemented Role-Based Access Control middleware (`requireRole('USER' | 'ADMIN' | 'SUPER_ADMIN')`).
+- **Category Engine**: Category CRUD supporting custom user categories, system categories protection (`isSystem: true`), soft deletion (`deleted_at`), pagination, and type filtering (`income`, `expense`, `transfer`).
+- **Centralized Feature Flags**: `featureFlags.service.ts` exposing environment flags (`ENABLE_AI`, `ENABLE_UPI`, `ENABLE_INVESTMENTS`, `ENABLE_NOTIFICATIONS`) and endpoint `GET /api/v1/feature-flags`.
+- **Vitest Testing Suite**: Added integration test suites for Authentication (`auth.test.ts`) and Categories (`categories.test.ts`).
+
+---
+
 ## [0.2.0-alpha] - 2026-08-02
 
 ### Added

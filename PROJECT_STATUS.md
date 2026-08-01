@@ -1,7 +1,7 @@
 # Moneto — Project Status & Sprint Tracker
 
-**Current Phase**: Phase 0 — Foundation & Infrastructure Hardening Sprint (Complete)  
-**Version**: `v0.2.0-alpha`  
+**Current Phase**: Sprint 1 — Identity & Access Layer (Complete)  
+**Version**: `v1.0.0-alpha`  
 **Last Updated**: 2026-08-02  
 
 ---

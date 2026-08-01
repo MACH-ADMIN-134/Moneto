@@ -39,22 +39,26 @@ All Moneto API responses follow a unified JSON envelope:
 
 ---
 
-## 🛠 Endpoint Directory Matrix
+## 🛠 Endpoint Directory Matrix (Sprint 1 Complete)
 
 | Module | Method | Endpoint | Auth Required | Description |
 | :--- | :--- | :--- | :---: | :--- |
 | **Common** | `GET` | `/api/v1/health` | No | System health monitor |
-| **Auth** | `POST` | `/api/v1/auth/register` | No | Register new user account |
+| **Common** | `GET` | `/api/v1/ready` | No | Database readiness probe |
+| **Common** | `GET` | `/api/v1/live` | No | Process liveness probe |
+| **Common** | `GET` | `/api/v1/docs` | No | Interactive Swagger UI |
+| **Flags** | `GET` | `/api/v1/feature-flags` | No | Centralized feature flags state |
+| **Auth** | `POST` | `/api/v1/auth/register` | No | Register account (Argon2id) |
 | **Auth** | `POST` | `/api/v1/auth/login` | No | Authenticate & issue token pair |
 | **Auth** | `POST` | `/api/v1/auth/refresh` | Yes (Refresh) | Rotate access & refresh tokens |
-| **Auth** | `POST` | `/api/v1/auth/logout` | Yes | Revoke active session |
+| **Auth** | `POST` | `/api/v1/auth/logout` | Yes | Revoke active refresh session |
 | **Users** | `GET` | `/api/v1/users/me` | Yes | Get authenticated user profile |
 | **Users** | `PUT` | `/api/v1/users/me` | Yes | Update profile details |
-| **Dashboard**| `GET` | `/api/v1/dashboard/summary` | Yes | Financial overview KPIs |
-| **Categories**|`GET` | `/api/v1/categories` | Yes | List transaction categories |
-| **Transactions**|`GET`| `/api/v1/transactions` | Yes | Search & paginate transactions |
-| **Transactions**|`POST`| `/api/v1/transactions` | Yes | Log new financial transaction |
-| **Payables** | `GET` | `/api/v1/payables` | Yes | List active bill payables |
-| **Lending** | `GET` | `/api/v1/lending` | Yes | List peer lend records |
-| **Settings** | `GET` | `/api/v1/settings` | Yes | Get user preference config |
-| **Notifications**|`GET`| `/api/v1/notifications` | Yes | List unread user alerts |
+| **Users** | `POST` | `/api/v1/users/me/change-password` | Yes | Change password (Argon2id) |
+| **Users** | `PUT` | `/api/v1/users/me/preferences` | Yes | Update theme/currency settings |
+| **Users** | `GET` | `/api/v1/users/me/sessions` | Yes | List active non-revoked sessions |
+| **Users** | `POST` | `/api/v1/users/me/sessions/revoke-all` | Yes | Revoke all active user sessions |
+| **Categories**|`GET` | `/api/v1/categories` | Yes | List categories (system + custom) |
+| **Categories**|`POST`| `/api/v1/categories` | Yes | Create custom category |
+| **Categories**|`PUT` | `/api/v1/categories/:id` | Yes | Update custom category |
+| **Categories**|`DELETE`|`/api/v1/categories/:id` | Yes | Soft-delete custom category |
