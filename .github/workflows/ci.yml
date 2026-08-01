@@ -21,11 +21,13 @@ jobs:
           node-version: 20
           cache: 'npm'
 
-      - name: Check Backend Types & Quality
+      - name: Check Backend Types & Run Vitest Tests
         run: |
           cd backend
           npm ci
+          npx prisma generate
           npm run build
+          npm run test
 
       - name: Check Frontend Types & Quality
         run: |
