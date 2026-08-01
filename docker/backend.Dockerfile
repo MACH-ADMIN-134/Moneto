@@ -1,20 +1,32 @@
 # Multi-stage production Dockerfile for Moneto Backend API
+# Updated to include Prisma Client generation
 
-# Stage 1: Build
-FROM node:20-alpine AS builder
+# Stage 1: Dependencies
+FROM node:20-alpine AS deps
 WORKDIR /app
 COPY backend/package*.json ./
 RUN npm ci
+
+# Stage 2: Build + Prisma Generate
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
 COPY backend/ ./
+RUN npx prisma generate
 RUN npm run build
 
-# Stage 2: Runner
+# Stage 3: Production Runner (non-root)
 FROM node:20-alpine AS runner
 WORKDIR /app
-NODE_ENV=production
+ENV NODE_ENV=production
+
 COPY backend/package*.json ./
-RUN npm ci --only=production
+RUN npm ci --omit=dev
+
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+COPY backend/prisma ./prisma
 
 USER node
 EXPOSE 5000

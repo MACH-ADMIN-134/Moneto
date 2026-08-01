@@ -1,0 +1,265 @@
+// Moneto Enterprise Prisma Schema (v0.1.0-alpha)
+// Datasource: PostgreSQL | Generator: Prisma Client JS
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 1. USERS MODEL
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  email        String    @unique @db.VarChar(255)
+  passwordHash String    @map("password_hash") @db.VarChar(255)
+  fullName     String    @map("full_name") @db.VarChar(100)
+  avatarUrl    String?   @map("avatar_url") @db.VarChar(512)
+  role         String    @default("user") @db.VarChar(32)
+  status       String    @default("active") @db.VarChar(32)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz()
+
+  // Relations
+  sessions      UserSession[]
+  categories    Category[]
+  transactions  Transaction[]
+  payables      Payable[]
+  lendRequests  LendRequest[]
+  settings      UserSetting?
+  notifications Notification[]
+  auditLogs     AuditLog[]
+  connections   Connection[]
+
+  @@index([email])
+  @@index([status])
+  @@map("users")
+}
+
+// 2. USER SESSIONS MODEL
+model UserSession {
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @map("user_id") @db.Uuid
+  refreshTokenHash  String   @map("refresh_token_hash") @db.VarChar(255)
+  ipAddress         String   @map("ip_address") @db.VarChar(45)
+  userAgent         String   @map("user_agent") @db.Text
+  isRevoked         Boolean  @default(false) @map("is_revoked")
+  expiresAt         DateTime @map("expires_at") @db.Timestamptz()
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([refreshTokenHash])
+  @@map("user_sessions")
+}
+
+// 3. CATEGORIES MODEL
+model Category {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String?   @map("user_id") @db.Uuid
+  name      String    @db.VarChar(64)
+  type      String    @db.VarChar(32) // income | expense | transfer
+  icon      String    @default("folder") @db.VarChar(64)
+  color     String    @default("#10B981") @db.VarChar(16)
+  isSystem  Boolean   @default(false) @map("is_system")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
+
+  // Relations
+  user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@index([userId, type])
+  @@map("categories")
+}
+
+// 4. TRANSACTIONS MODEL
+model Transaction {
+  id              String    @id @default(uuid()) @db.Uuid
+  userId          String    @map("user_id") @db.Uuid
+  categoryId      String    @map("category_id") @db.Uuid
+  amount          Decimal   @db.Decimal(15, 2)
+  currency        String    @default("USD") @db.VarChar(3)
+  type            String    @db.VarChar(32) // income | expense | transfer
+  description     String?   @db.Text
+  transactionDate DateTime  @default(now()) @map("transaction_date") @db.Timestamptz()
+  metadata        Json?     @default("{}")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt       DateTime? @map("deleted_at") @db.Timestamptz()
+
+  // Relations
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category        Category         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  payablePayments PayablePayment[]
+
+  @@index([userId, transactionDate(sort: Desc)])
+  @@index([categoryId])
+  @@map("transactions")
+}
+
+// 5. PAYABLES MODEL
+model Payable {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  title      String    @db.VarChar(128)
+  billerName String    @map("biller_name") @db.VarChar(128)
+  amount     Decimal   @db.Decimal(15, 2)
+  currency   String    @default("USD") @db.VarChar(3)
+  dueDate    DateTime  @map("due_date") @db.Timestamptz()
+  frequency  String    @default("monthly") @db.VarChar(32) // one_time | weekly | monthly | yearly
+  status     String    @default("pending") @db.VarChar(32) // pending | paid | overdue | cancelled
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt  DateTime? @map("deleted_at") @db.Timestamptz()
+
+  // Relations
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payments PayablePayment[]
+
+  @@index([userId, status])
+  @@index([dueDate])
+  @@map("payables")
+}
+
+// 6. PAYABLE PAYMENTS MODEL
+model PayablePayment {
+  id            String   @id @default(uuid()) @db.Uuid
+  payableId     String   @map("payable_id") @db.Uuid
+  transactionId String?  @map("transaction_id") @db.Uuid
+  amountPaid    Decimal  @map("amount_paid") @db.Decimal(15, 2)
+  paymentDate   DateTime @default(now()) @map("payment_date") @db.Timestamptz()
+  notes         String?  @db.Text
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  // Relations
+  payable     Payable      @relation(fields: [payableId], references: [id], onDelete: Cascade)
+  transaction Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+
+  @@index([payableId])
+  @@map("payable_payments")
+}
+
+// 7. LEND REQUESTS MODEL
+model LendRequest {
+  id                  String    @id @default(uuid()) @db.Uuid
+  userId              String    @map("user_id") @db.Uuid
+  counterpartyName    String    @map("counterparty_name") @db.VarChar(128)
+  counterpartyContact String?   @map("counterparty_contact") @db.VarChar(128)
+  type                String    @db.VarChar(32) // lent | borrowed
+  principalAmount     Decimal   @map("principal_amount") @db.Decimal(15, 2)
+  interestRate        Decimal   @default(0.00) @map("interest_rate") @db.Decimal(5, 2)
+  currency            String    @default("USD") @db.VarChar(3)
+  dueDate             DateTime? @map("due_date") @db.Timestamptz()
+  status              String    @default("active") @db.VarChar(32) // active | partially_settled | settled | defaulted
+  notes               String?   @db.Text
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt           DateTime? @map("deleted_at") @db.Timestamptz()
+
+  // Relations
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions LendTransaction[]
+
+  @@index([userId, status])
+  @@map("lend_requests")
+}
+
+// 8. LEND TRANSACTIONS MODEL
+model LendTransaction {
+  id            String   @id @default(uuid()) @db.Uuid
+  lendRequestId String   @map("lend_request_id") @db.Uuid
+  amount        Decimal  @db.Decimal(15, 2)
+  type          String   @db.VarChar(32) // disbursement | repayment
+  paymentDate   DateTime @default(now()) @map("payment_date") @db.Timestamptz()
+  notes         String?  @db.Text
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  // Relations
+  lendRequest LendRequest @relation(fields: [lendRequestId], references: [id], onDelete: Cascade)
+
+  @@index([lendRequestId])
+  @@map("lend_transactions")
+}
+
+// 9. USER SETTINGS MODEL
+model UserSetting {
+  userId             String   @id @map("user_id") @db.Uuid
+  theme              String   @default("system") @db.VarChar(16)
+  defaultCurrency    String   @default("USD") @map("default_currency") @db.VarChar(3)
+  emailNotifications Boolean  @default(true) @map("email_notifications")
+  pushNotifications  Boolean  @default(true) @map("push_notifications")
+  twoFactorEnabled   Boolean  @default(false) @map("two_factor_enabled")
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
+}
+
+// 10. NOTIFICATIONS MODEL
+model Notification {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  title     String   @db.VarChar(128)
+  message   String   @db.Text
+  type      String   @default("info") @db.VarChar(32)
+  isRead    Boolean  @default(false) @map("is_read")
+  link      String?  @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+// 11. AUDIT LOGS MODEL
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String?  @map("user_id") @db.Uuid
+  ipAddress  String   @map("ip_address") @db.VarChar(45)
+  userAgent  String?  @map("user_agent") @db.Text
+  action     String   @db.VarChar(64)
+  resource   String   @db.VarChar(128)
+  payload    Json?    @default("{}")
+  statusCode Int      @map("status_code")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt(sort: Desc)])
+  @@map("audit_logs")
+}
+
+// 12. CONNECTIONS MODEL
+model Connection {
+  id                 String    @id @default(uuid()) @db.Uuid
+  userId             String    @map("user_id") @db.Uuid
+  providerName       String    @map("provider_name") @db.VarChar(64)
+  accountName        String    @map("account_name") @db.VarChar(128)
+  authTokenEncrypted String?   @map("auth_token_encrypted") @db.Text
+  status             String    @default("connected") @db.VarChar(32)
+  lastSyncedAt       DateTime? @map("last_synced_at") @db.Timestamptz()
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt          DateTime? @map("deleted_at") @db.Timestamptz()
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("connections")
+}

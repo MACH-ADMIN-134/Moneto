@@ -1,0 +1,4 @@
+# Prisma migration lock file, do not modify.
+# https://www.prisma.io/docs/concepts/components/prisma-migrate/migration-lock
+
+provider = "postgresql"
