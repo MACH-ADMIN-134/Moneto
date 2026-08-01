@@ -4,6 +4,7 @@
 ![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
 ![Security](https://img.shields.io/badge/Security-Argon2id%20%7C%20JWT-purple?style=for-the-badge)
 ![Stack](https://img.shields.io/badge/Stack-React%20%7C%20Node.js%20%7C%20PostgreSQL-darkgreen?style=for-the-badge)
+![ORM](https://img.shields.io/badge/ORM-Prisma%20v5-2D3748?style=for-the-badge&logo=prisma)
 
 Moneto is an enterprise-grade, security-first personal finance platform built for seamless cross-platform financial tracking, budgeting, payable management, and lending analytics. 
 
@@ -24,9 +25,14 @@ Moneto is an enterprise-grade, security-first personal finance platform built fo
 
 ```text
 moneto/
-├── backend/            # Express + TypeScript Security-First API (/api/v1)
+├── backend/
+│   ├── prisma/
+│   │   ├── schema.prisma          # Prisma ORM schema (12 models)
+│   │   ├── seed.ts                # Idempotent seed script
+│   │   └── migrations/            # Prisma migration history
+│   └── src/                       # Express + TypeScript Security-First API
 ├── frontend/           # React + TypeScript + Vite + Tailwind CSS SPA
-├── database/           # PostgreSQL DDL Schemas, Migrations & Seeds (Dev, Test, Prod)
+├── database/           # PostgreSQL DDL Schemas & Seeds (Dev, Test, Prod)
 ├── docker/             # Production & Multi-stage Dockerfiles
 ├── nginx/              # Reverse Proxy Nginx Configuration & Security Headers
 ├── scripts/            # Cross-platform administration scripts (.sh & .ps1)
@@ -72,6 +78,15 @@ Or manually with Docker:
 docker compose -f docker-compose.dev.yml up --build -d
 ```
 
+### 4. Initialize Prisma (after dev DB is running)
+```bash
+cd backend
+npm run prisma:generate    # Generate Prisma Client types
+npm run prisma:deploy      # Apply migrations to database
+npm run prisma:seed        # Seed default categories
+npm run prisma:studio      # Open DB GUI at http://localhost:5555
+```
+
 ---
 
 ## 🌐 Default Ports & Access Points
@@ -82,6 +97,7 @@ docker compose -f docker-compose.dev.yml up --build -d
 | **Frontend Web App** | `moneto-frontend` | `http://localhost:3000` |
 | **Backend REST API** | `moneto-backend` | `http://localhost:5000/api/v1` |
 | **PostgreSQL Database** | `moneto-postgres` | `localhost:5432` (`moneto_dev`, `moneto_test`, `moneto_prod`) |
+| **Prisma Studio** | Local tool | `http://localhost:5555` |
 
 ---
 

@@ -8,39 +8,81 @@ Moneto uses three isolated database instances:
 
 ---
 
-## 🗄 Entity Relationship Model & Table Specifications
+## 🗄 ORM Layer: Prisma
 
-The database schema consists of **12 core enterprise tables**:
+Moneto uses **Prisma ORM v5** for all database access, type-safe query execution, schema migration management, and development tooling.
 
-```text
-users ──< user_sessions
-users ──< user_settings
-users ──< categories ──< transactions
-users ──< payables ──< payable_payments
-users ──< lend_requests ──< lend_transactions
-users ──< notifications
-users ──< audit_logs
-users ──< connections
+### Schema Location
+```
+backend/
+└── prisma/
+    ├── schema.prisma              # Master schema with all 12 models
+    ├── seed.ts                    # Idempotent category seed script
+    └── migrations/
+        ├── migration_lock.toml    # Prisma migration lock (do not edit)
+        └── 20260802000000_init_prisma_schema/
+            └── migration.sql      # Baseline migration for all tables
 ```
 
-### Table Definitions Overview
+### Environment Variables
+```env
+DATABASE_URL="postgresql://moneto_admin:<password>@localhost:5432/moneto_dev?schema=public"
+DIRECT_URL="postgresql://moneto_admin:<password>@localhost:5432/moneto_dev?schema=public"
+```
 
-1. `users`: Master user account records (UUID PK, email, password_hash, status, timestamps).
-2. `user_sessions`: Active user authentication sessions (refresh tokens, IP, user-agent, expires_at, revoked_at).
-3. `categories`: Income and expense categorization taxonomy (custom icons, types, system vs custom flag).
-4. `transactions`: Immutable financial transaction history (amount, type, category_id, date, soft-delete).
-5. `payables`: Recurring bills and liability commitments (vendor, amount, due_date, status).
-6. `payable_payments`: Payment executions against logged payables.
-7. `lend_requests`: Peer-to-peer lending and borrowing records (counterparty, principal, interest, status).
-8. `lend_transactions`: Repayment transactions linked to lend requests.
-9. `user_settings`: User preference storage (theme, default currency, notification rules, MFA status).
-10. `notifications`: In-app system alerts, security warnings, and payable reminders.
-11. `audit_logs`: Immutable security audit log storing IP, user_id, action, resource, and payload diffs.
-12. `connections`: Third-party financial institution connection tokens and metadata.
+### Migration Workflow Commands
+
+| Action | Command | Context |
+| :--- | :--- | :--- |
+| Generate Prisma Client | `npm run prisma:generate` | After schema changes |
+| Create new migration | `npm run prisma:migrate` | During development |
+| Apply all pending migrations | `npm run prisma:deploy` | CI/CD & production |
+| Reset database (dev only) | `npm run prisma:reset` | Local dev reset |
+| Run seed script | `npm run prisma:seed` | After migration or reset |
+| Open Prisma Studio | `npm run prisma:studio` | DB GUI at localhost:5555 |
+
+> [!IMPORTANT]
+> **All future schema changes must go through `npx prisma migrate dev`**. Direct SQL edits to the database should be avoided in favor of migration files.
+
+---
+
+## 🏗 Entity Relationship Model & Table Specifications
+
+The database schema consists of **12 core enterprise tables**, all mapped 1:1 to Prisma models via `@map` annotations:
+
+```text
+User ──< UserSession
+User ──< UserSetting         (1:1)
+User ──< Category ──< Transaction
+User ──< Payable ──< PayablePayment
+User ──< LendRequest ──< LendTransaction
+User ──< Notification
+User ──< AuditLog
+User ──< Connection
+Transaction ─< PayablePayment
+```
+
+### Table & Model Directory
+
+| Prisma Model | SQL Table | UUID PK | Soft Delete | Timestamps |
+| :--- | :--- | :---: | :---: | :---: |
+| `User` | `users` | ✅ | ✅ | ✅ |
+| `UserSession` | `user_sessions` | ✅ | ❌ | ✅ |
+| `Category` | `categories` | ✅ | ✅ | ✅ |
+| `Transaction` | `transactions` | ✅ | ✅ | ✅ |
+| `Payable` | `payables` | ✅ | ✅ | ✅ |
+| `PayablePayment` | `payable_payments` | ✅ | ❌ | `createdAt` only |
+| `LendRequest` | `lend_requests` | ✅ | ✅ | ✅ |
+| `LendTransaction` | `lend_transactions` | ✅ | ❌ | `createdAt` only |
+| `UserSetting` | `user_settings` | User PK | ❌ | `updatedAt` only |
+| `Notification` | `notifications` | ✅ | ❌ | `createdAt` only |
+| `AuditLog` | `audit_logs` | ✅ | ❌ | `createdAt` only |
+| `Connection` | `connections` | ✅ | ✅ | ✅ |
 
 ---
 
 ## 🔒 Data Integrity & Soft Deletes
-- Primary Keys: All tables use `UUIDv4` generated via PostgreSQL `uuid_generate_v4()` to eliminate ID enumeration attacks.
-- Timestamps: All temporal fields are stored in `TIMESTAMPTZ` (UTC).
-- Soft Deletions: Tables with financial significance contain `deleted_at TIMESTAMPTZ DEFAULT NULL`. Hard deletes are strictly prohibited on core transactional ledgers.
+- **Primary Keys**: All tables use UUIDv4 via PostgreSQL `gen_random_uuid()`.
+- **Timestamps**: All temporal fields stored as `TIMESTAMPTZ` (UTC) using `@db.Timestamptz()`.
+- **Soft Deletions**: Financial tables carry `deleted_at TIMESTAMPTZ?` (Prisma: `deletedAt DateTime?`). Hard deletes are prohibited on financial ledgers.
+- **Foreign Keys**: All relationships enforced with `onDelete: Cascade`, `Restrict`, or `SetNull` as appropriate to business rules.

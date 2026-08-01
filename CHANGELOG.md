@@ -5,6 +5,19 @@ All notable changes to the Moneto platform will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1-alpha] - 2026-08-02
+
+### Added
+- **Prisma ORM Integration**: Installed `@prisma/client` v5 and `prisma` CLI alongside existing PostgreSQL `pg` pool. Both clients exported from `backend/src/config/database.config.ts` for backward compatibility.
+- **Prisma Schema**: Created `backend/prisma/schema.prisma` with 12 strongly-typed models mapped 1:1 to existing PostgreSQL tables using `@map` annotations — preserving exact column names, UUID PKs (`@db.Uuid`), foreign key constraints, `deletedAt` soft-delete fields, and `@@index` definitions.
+- **Baseline Migration**: Generated `backend/prisma/migrations/20260802000000_init_prisma_schema/migration.sql` representing the full enterprise DDL as the Prisma migration baseline.
+- **Idempotent Seed Script**: Created `backend/prisma/seed.ts` that uses `findFirst` + `create` pattern to idempotently populate default system transaction categories on every run.
+- **Package Scripts**: Added `prisma:generate`, `prisma:migrate`, `prisma:deploy`, `prisma:reset`, `prisma:seed`, and `prisma:studio` to `backend/package.json`.
+- **Docker Integration**: Updated `docker/backend.Dockerfile` with `npx prisma generate` in the build stage and `prisma migrate deploy` in the Docker Compose production container startup command.
+- **Environment Variables**: Added `DATABASE_URL` and `DIRECT_URL` to `.env.example`.
+
+---
+
 ## [0.1.0-alpha] - 2026-08-02
 
 ### Added
