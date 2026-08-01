@@ -1,0 +1,30 @@
+{
+  "name": "moneto-monorepo",
+  "version": "0.1.0-alpha",
+  "private": true,
+  "description": "Moneto - Security-first Personal Finance Platform Monorepo",
+  "scripts": {
+    "init:dev": "powershell -ExecutionPolicy Bypass -File ./scripts/init.ps1",
+    "backend:dev": "npm --prefix backend run dev",
+    "backend:build": "npm --prefix backend run build",
+    "frontend:dev": "npm --prefix frontend run dev",
+    "frontend:build": "npm --prefix frontend run build",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:dev": "docker compose -f docker-compose.dev.yml up -d",
+    "lint": "npm run --prefix backend lint && npm run --prefix frontend lint",
+    "healthcheck": "powershell -ExecutionPolicy Bypass -File ./scripts/healthcheck.ps1"
+  },
+  "keywords": [
+    "personal-finance",
+    "security-first",
+    "argon2id",
+    "react",
+    "typescript",
+    "express",
+    "postgresql",
+    "docker"
+  ],
+  "author": "MACH-ADMIN-134 <kichu8005@gmail.com>",
+  "license": "MIT"
+}

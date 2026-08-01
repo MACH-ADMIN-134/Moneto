@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  postgres-dev:
+    image: postgres:16-alpine
+    container_name: moneto-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-moneto_admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-MonetoSecurePassword2026!}
+      POSTGRES_DB: ${DB_NAME_DEV:-moneto_dev}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+    networks:
+      - moneto-dev-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-moneto_admin}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  postgres_dev_data:
+
+networks:
+  moneto-dev-network:
+    driver: bridge

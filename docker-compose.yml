@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: moneto-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER:-moneto_admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-MonetoSecurePassword2026!}
+      POSTGRES_DB: ${DB_NAME_PROD:-moneto_prod}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+    networks:
+      - moneto-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-moneto_admin} -d ${DB_NAME_PROD:-moneto_prod}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    container_name: moneto-backend
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      API_PREFIX: /api/v1
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-moneto_admin}
+      DB_PASSWORD: ${DB_PASSWORD:-MonetoSecurePassword2026!}
+      DB_NAME: ${DB_NAME_PROD:-moneto_prod}
+      JWT_SECRET: ${JWT_SECRET:-super_secret_moneto_jwt_access_key_change_in_production_2026}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-super_secret_moneto_jwt_refresh_key_change_in_production_2026}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - moneto-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/v1/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+    container_name: moneto-frontend
+    restart: always
+    networks:
+      - moneto-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: moneto-nginx
+    restart: always
+    ports:
+      - "${NGINX_PORT:-80}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - moneto-network
+
+volumes:
+  postgres_data:
+
+networks:
+  moneto-network:
+    driver: bridge
