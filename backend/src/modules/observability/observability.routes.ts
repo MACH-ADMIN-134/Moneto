@@ -14,7 +14,7 @@ router.get('/live', (_req, res) => {
 });
 
 // Readiness Probe (verifies database connectivity)
-router.get('/ready', async (_req, res, next) => {
+router.get('/ready', async (_req, res, _next) => {
   try {
     await prisma.$queryRaw`SELECT 1`;
     sendSuccess(res, {

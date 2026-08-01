@@ -52,12 +52,21 @@ moneto/
 
 ### 1. Prerequisites
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (v24+)
-- Node.js (v20+) & npm (v10+) *[Optional for local dev without Docker]*
+- Node.js (v20+ or v22 LTS) & npm (v10+)
 
-### 2. Environment Setup
-Clone the repository and copy the environment template:
+### 2. Fresh Clone & Build (Linux / macOS / Windows)
+Clone the repository, install dependencies, and build all workspaces:
 ```bash
+git clone https://github.com/MACH-ADMIN-134/Moneto.git
+cd Moneto
 cp .env.example .env
+
+# Install dependencies across all workspaces & generate Prisma client
+npm install
+
+# Build backend and frontend (TypeScript + Vite)
+npm run backend:build
+npm run frontend:build
 ```
 
 ### 3. Launch Development Environment

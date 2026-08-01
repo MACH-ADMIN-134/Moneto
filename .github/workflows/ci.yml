@@ -7,37 +7,34 @@ on:
     branches: [ main, develop ]
 
 jobs:
-  lint-and-typecheck:
-    name: Code Quality & Type Checks
-    runs-on: ubuntu-latest
+  build-and-test:
+    name: Clean Build & Test Verification (Node 22 LTS)
+    runs-on: ubuntu-24.04
 
     steps:
-      - name: Checkout Code
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js Environment
+      - name: Setup Node.js 22 LTS
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: 'npm'
+          node-version: 22
 
-      - name: Check Backend Types & Run Vitest Tests
-        run: |
-          cd backend
-          npm ci
-          npx prisma generate
-          npm run build
-          npm run test
+      - name: Install Dependencies across Monorepo Workspaces
+        run: npm install
 
-      - name: Check Frontend Types & Quality
-        run: |
-          cd frontend
-          npm ci
-          npm run build
+      - name: Build Backend (TypeScript + Prisma Generate)
+        run: npm run backend:build
+
+      - name: Build Frontend (Vite + React + Tailwind)
+        run: npm run frontend:build
+
+      - name: Run Backend Vitest Test Suite
+        run: npm run test
 
   docker-build-verify:
     name: Docker Multi-Stage Build Check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout Repository

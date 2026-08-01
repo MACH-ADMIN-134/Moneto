@@ -9,7 +9,7 @@ import { Shield, TrendingUp, CreditCard, Users, Lock, Server, Database } from 'l
 
 const queryClient = new QueryClient();
 
-export const AppContent: React.FC<{ activeTab: string }> = ({ activeTab }) => {
+export const AppContent: React.FC<{ activeTab: string }> = ({ activeTab: _activeTab }) => {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Welcome Banner */}

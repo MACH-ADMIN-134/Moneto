@@ -1,3 +1,5 @@
+/// <reference types="vite/client" />
+
 export interface ApiResponse<T = unknown> {
   success: boolean;
   statusCode: number;
