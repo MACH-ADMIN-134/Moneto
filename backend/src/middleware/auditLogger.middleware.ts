@@ -1,8 +1,8 @@
 import { Response, NextFunction } from 'express';
-import { AuthenticatedRequest } from './auth.middleware.js';
+import { CorrelatedRequest } from './requestId.middleware.js';
 import { logger } from '../common/logger.js';
 
-export function auditLogger(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
+export function auditLogger(req: CorrelatedRequest, res: Response, next: NextFunction): void {
   const start = Date.now();
 
   res.on('finish', () => {
@@ -11,7 +11,8 @@ export function auditLogger(req: AuthenticatedRequest, res: Response, next: Next
 
     if (isMutating) {
       logger.info('Audit Log Event', {
-        userId: req.user?.id || 'anonymous',
+        requestId: req.id,
+        correlationId: req.correlationId,
         method: req.method,
         path: req.originalUrl,
         statusCode: res.statusCode,

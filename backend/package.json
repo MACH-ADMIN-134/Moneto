@@ -1,6 +1,6 @@
 {
   "name": "@moneto/backend",
-  "version": "0.1.0-alpha",
+  "version": "0.1.1-alpha",
   "private": true,
   "description": "Moneto Security-First Backend API Service with Prisma ORM",
   "main": "dist/server.js",
@@ -9,6 +9,9 @@
     "build": "prisma generate && tsc",
     "start": "node dist/server.js",
     "lint": "eslint 'src/**/*.ts'",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
@@ -29,6 +32,7 @@
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.11.3",
+    "swagger-ui-express": "^5.0.0",
     "winston": "^3.11.0",
     "zod": "^3.22.4"
   },
@@ -38,19 +42,17 @@
     "@types/jsonwebtoken": "^9.0.5",
     "@types/node": "^20.10.6",
     "@types/pg": "^8.10.9",
+    "@types/supertest": "^6.0.2",
+    "@types/swagger-ui-express": "^4.1.6",
     "@typescript-eslint/eslint-plugin": "^6.16.0",
     "@typescript-eslint/parser": "^6.16.0",
     "eslint": "^8.56.0",
     "prettier": "^3.1.1",
     "prisma": "^5.8.0",
+    "supertest": "^6.3.4",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^5.3.3"
-  },
-  "allowScripts": {
-    "@prisma/client@5.22.0": true,
-    "@prisma/engines@5.22.0": true,
-    "prisma@5.22.0": true,
-    "argon2@0.31.2": true
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.1"
   }
 }

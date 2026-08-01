@@ -7,6 +7,7 @@ export interface ApiResponse<T = unknown> {
   data?: T;
   meta?: {
     timestamp: string;
+    requestId?: string;
     [key: string]: unknown;
   };
 }
@@ -18,6 +19,8 @@ export function sendSuccess<T>(
   statusCode = 200,
   meta?: Record<string, unknown>
 ): Response {
+  const requestId = res.getHeader('X-Request-ID') as string | undefined;
+
   const payload: ApiResponse<T> = {
     success: true,
     statusCode,
@@ -25,6 +28,7 @@ export function sendSuccess<T>(
     data,
     meta: {
       timestamp: new Date().toISOString(),
+      ...(requestId ? { requestId } : {}),
       ...meta,
     },
   };
