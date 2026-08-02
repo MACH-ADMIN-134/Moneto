@@ -1,11 +1,23 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '../api/client';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
-import { Target, Plus, CheckCircle, Calendar, Trash2 } from 'lucide-react';
+import {
+  Target,
+  Plus,
+  CheckCircle,
+  Calendar,
+  Trash2,
+  Edit3,
+  X,
+  RefreshCw,
+  AlertCircle,
+  PiggyBank,
+} from 'lucide-react';
 
-interface Goal {
+export interface Goal {
   id: string;
   title: string;
   targetAmount: number;
@@ -18,88 +30,203 @@ interface Goal {
 }
 
 export const GoalsPage: React.FC = () => {
-  const [goals, setGoals] = useState<Goal[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+
+  // Modal States
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [showContribModal, setShowContribModal] = useState(false);
+  const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
 
-  // Form states
+  // Form States
   const [title, setTitle] = useState('');
   const [targetAmount, setTargetAmount] = useState('');
   const [currentAmount, setCurrentAmount] = useState('');
   const [category, setCategory] = useState('Safety');
+  const [targetDate, setTargetDate] = useState('');
   const [contribAmount, setContribAmount] = useState('');
+  const [formError, setFormError] = useState('');
 
-  const loadGoals = async () => {
-    try {
-      const res = await apiRequest<Goal[]>('/goals');
-      setGoals(res);
-    } catch (_err) {
-      // Demo fallback
-      setGoals([
-        { id: '1', title: 'Emergency Reserve Fund', targetAmount: 20000.00, currentAmount: 14200.50, remaining: 5799.50, percentage: 71, isCompleted: false, category: 'Safety', targetDate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString() },
-        { id: '2', title: 'European Summer Trip', targetAmount: 5000.00, currentAmount: 3200.00, remaining: 1800.00, percentage: 64, isCompleted: false, category: 'Travel', targetDate: new Date(Date.now() + 120 * 24 * 60 * 60 * 1000).toISOString() },
-      ]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // 1. Fetch Savings Goals with React Query
+  const {
+    data: goals = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery<Goal[]>({
+    queryKey: ['goals'],
+    queryFn: async () => {
+      try {
+        return await apiRequest<Goal[]>('/goals');
+      } catch (_err) {
+        return [
+          { id: '1', title: 'Emergency Reserve Fund', targetAmount: 20000.00, currentAmount: 14200.50, remaining: 5799.50, percentage: 71, isCompleted: false, category: 'Safety', targetDate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString() },
+          { id: '2', title: 'European Summer Trip', targetAmount: 5000.00, currentAmount: 3200.00, remaining: 1800.00, percentage: 64, isCompleted: false, category: 'Travel', targetDate: new Date(Date.now() + 120 * 24 * 60 * 60 * 1000).toISOString() },
+        ];
+      }
+    },
+  });
 
-  useEffect(() => {
-    loadGoals();
-  }, []);
+  const totalTarget = goals.reduce((sum, g) => sum + Number(g.targetAmount), 0);
+  const totalSaved = goals.reduce((sum, g) => sum + Number(g.currentAmount), 0);
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      await apiRequest('/goals', {
+  // 2. React Query Mutations: Create, Edit, Contribute, Delete
+  const createMutation = useMutation({
+    mutationFn: async (payload: any) => {
+      return apiRequest<Goal>('/goals', {
         method: 'POST',
-        body: JSON.stringify({
-          title,
-          targetAmount: parseFloat(targetAmount),
-          currentAmount: currentAmount ? parseFloat(currentAmount) : 0,
-          category,
-        }),
+        body: JSON.stringify(payload),
       });
-      setShowGoalModal(false);
-      setTitle('');
-      setTargetAmount('');
-      setCurrentAmount('');
-      loadGoals();
-    } catch (err: any) {
-      alert(err.message || 'Failed to create goal');
-    }
-  };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['goals'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      closeModals();
+    },
+    onError: (err: any) => {
+      setFormError(err.message || 'Failed to create goal');
+    },
+  });
 
-  const handleContribute = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedGoalId) return;
-    try {
-      await apiRequest(`/goals/${selectedGoalId}/contribute`, {
+  const editMutation = useMutation({
+    mutationFn: async (params: { id: string; payload: any }) => {
+      return apiRequest<Goal>(`/goals/${params.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(params.payload),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['goals'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      closeModals();
+    },
+    onError: (err: any) => {
+      setFormError(err.message || 'Failed to update goal');
+    },
+  });
+
+  const contributeMutation = useMutation({
+    mutationFn: async (params: { id: string; amount: number }) => {
+      return apiRequest<Goal>(`/goals/${params.id}/contribute`, {
         method: 'PATCH',
-        body: JSON.stringify({ amount: parseFloat(contribAmount) }),
+        body: JSON.stringify({ amount: params.amount }),
       });
-      setShowContribModal(false);
-      setContribAmount('');
-      loadGoals();
-    } catch (err: any) {
-      alert(err.message || 'Failed to add contribution');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['goals'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      closeModals();
+    },
+    onError: (err: any) => {
+      setFormError(err.message || 'Failed to record contribution');
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest<void>(`/goals/${id}`, { method: 'DELETE' });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['goals'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+    onError: (err: any) => {
+      alert(err.message || 'Failed to delete goal');
+    },
+  });
+
+  const openCreateModal = () => {
+    setEditingGoal(null);
+    setTitle('');
+    setTargetAmount('');
+    setCurrentAmount('');
+    setCategory('Safety');
+    setTargetDate('');
+    setFormError('');
+    setShowGoalModal(true);
+  };
+
+  const openEditModal = (g: Goal) => {
+    setEditingGoal(g);
+    setTitle(g.title);
+    setTargetAmount(g.targetAmount.toString());
+    setCurrentAmount(g.currentAmount.toString());
+    setCategory(g.category);
+    setTargetDate(g.targetDate ? new Date(g.targetDate).toISOString().split('T')[0] : '');
+    setFormError('');
+    setShowGoalModal(true);
+  };
+
+  const openContribModal = (id: string) => {
+    setSelectedGoalId(id);
+    setContribAmount('');
+    setFormError('');
+    setShowContribModal(true);
+  };
+
+  const closeModals = () => {
+    setShowGoalModal(false);
+    setShowContribModal(false);
+    setEditingGoal(null);
+    setSelectedGoalId(null);
+    setFormError('');
+  };
+
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError('');
+
+    if (!title.trim()) {
+      setFormError('Goal title is required');
+      return;
+    }
+
+    const numTarget = parseFloat(targetAmount);
+    if (isNaN(numTarget) || numTarget <= 0) {
+      setFormError('Target amount must be a positive number');
+      return;
+    }
+
+    const payload = {
+      title,
+      targetAmount: numTarget,
+      currentAmount: currentAmount ? parseFloat(currentAmount) : 0,
+      category,
+      targetDate: targetDate ? new Date(targetDate).toISOString() : null,
+    };
+
+    if (editingGoal) {
+      editMutation.mutate({ id: editingGoal.id, payload });
+    } else {
+      createMutation.mutate(payload);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this savings goal?')) return;
-    try {
-      await apiRequest(`/goals/${id}`, { method: 'DELETE' });
-      loadGoals();
-    } catch (err: any) {
-      alert(err.message || 'Failed to delete goal');
+  const handleContributeSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError('');
+
+    const numContrib = parseFloat(contribAmount);
+    if (isNaN(numContrib) || numContrib <= 0) {
+      setFormError('Contribution amount must be greater than zero');
+      return;
+    }
+
+    if (selectedGoalId) {
+      contributeMutation.mutate({ id: selectedGoalId, amount: numContrib });
+    }
+  };
+
+  const handleDelete = (id: string) => {
+    if (confirm('Are you sure you want to delete this savings goal?')) {
+      deleteMutation.mutate(id);
     }
   };
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
@@ -109,19 +236,57 @@ export const GoalsPage: React.FC = () => {
             Set target savings milestones, track contribution progress, and celebrate reaching your financial goals.
           </p>
         </div>
-        <Button variant="primary" onClick={() => setShowGoalModal(true)}>
+        <Button variant="primary" onClick={openCreateModal}>
           <Plus size={16} className="mr-2" /> Create Savings Goal
         </Button>
       </div>
 
-      {loading ? (
-        <div className="py-12 text-center text-slate-400">Loading savings goals...</div>
+      {/* Aggregated Goals Banner */}
+      <Card className="bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-950 text-white p-6 rounded-3xl">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="space-y-1">
+            <span className="text-xs uppercase font-bold tracking-widest text-emerald-400">Total Savings Target</span>
+            <div className="text-3xl md:text-4xl font-extrabold">${totalTarget.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+            <p className="text-xs text-slate-300">
+              Total Saved So Far: <span className="font-bold text-white">${totalSaved.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+            </p>
+          </div>
+          <Badge variant="success" className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 text-xs py-1.5 px-3">
+            {goals.length} Active Goals
+          </Badge>
+        </div>
+      </Card>
+
+      {/* Goals Grid */}
+      {isLoading ? (
+        <div className="py-16 text-center text-slate-400 space-y-3">
+          <RefreshCw size={24} className="animate-spin mx-auto text-emerald-500" />
+          <p className="text-sm font-medium">Loading savings goals...</p>
+        </div>
+      ) : isError ? (
+        <div className="py-16 text-center text-rose-500 space-y-3">
+          <AlertCircle size={32} className="mx-auto" />
+          <p className="font-bold">Failed to load savings goals</p>
+          <p className="text-xs text-slate-400">{(error as any)?.message || 'An error occurred'}</p>
+          <Button variant="outline" size="sm" onClick={() => refetch()}>
+            Try Again
+          </Button>
+        </div>
+      ) : goals.length === 0 ? (
+        <Card className="py-16 text-center text-slate-400 space-y-3">
+          <PiggyBank size={32} className="mx-auto text-slate-400" />
+          <p className="text-base font-semibold text-slate-700 dark:text-slate-300">No savings goals found</p>
+          <p className="text-xs">Create your first goal to start saving for emergency funds or purchases.</p>
+          <Button variant="outline" size="sm" onClick={openCreateModal}>
+            <Plus size={14} className="mr-1" /> Create Savings Goal
+          </Button>
+        </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {goals.map((g) => {
             const isCompleted = g.isCompleted;
             return (
-              <Card key={g.id} className="space-y-4 hover:border-emerald-500/40 transition-all">
+              <Card key={g.id} className="space-y-4 hover:border-emerald-500/40 transition-all group">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-600 dark:text-emerald-400 font-bold">
@@ -132,21 +297,40 @@ export const GoalsPage: React.FC = () => {
                       <p className="text-xs text-slate-400">{g.category}</p>
                     </div>
                   </div>
-                  <button onClick={() => handleDelete(g.id)} className="text-slate-400 hover:text-rose-500 transition-colors p-1">
-                    <Trash2 size={16} />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => openEditModal(g)}
+                      title="Edit Goal"
+                      className="text-slate-400 hover:text-emerald-500 transition-colors p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+                    >
+                      <Edit3 size={16} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(g.id)}
+                      title="Delete Goal"
+                      className="text-slate-400 hover:text-rose-500 transition-colors p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm font-bold">
-                    <span className="text-emerald-600 dark:text-emerald-400">${Number(g.currentAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })} Saved</span>
-                    <span className="text-slate-500">Target: ${Number(g.targetAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                    <span className="text-emerald-600 dark:text-emerald-400">
+                      ${Number(g.currentAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })} Saved
+                    </span>
+                    <span className="text-slate-500">
+                      Target: ${Number(g.targetAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    </span>
                   </div>
 
                   {/* Progress Bar */}
                   <div className="w-full h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                     <div
-                      className={`h-full rounded-full transition-all duration-500 ${isCompleted ? 'bg-emerald-500' : 'bg-gradient-to-r from-emerald-500 to-teal-400'}`}
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        isCompleted ? 'bg-emerald-500' : 'bg-gradient-to-r from-emerald-500 to-teal-400'
+                      }`}
                       style={{ width: `${Math.min(g.percentage, 100)}%` }}
                     />
                   </div>
@@ -169,12 +353,9 @@ export const GoalsPage: React.FC = () => {
                     <Button
                       variant="outline"
                       className="w-full text-xs"
-                      onClick={() => {
-                        setSelectedGoalId(g.id);
-                        setShowContribModal(true);
-                      }}
+                      onClick={() => openContribModal(g.id)}
                     >
-                      <CheckCircle size={14} className="mr-2" /> Add Savings Contribution
+                      <CheckCircle size={14} className="mr-2 text-emerald-500" /> Add Savings Contribution
                     </Button>
                   </div>
                 )}
@@ -184,18 +365,32 @@ export const GoalsPage: React.FC = () => {
         </div>
       )}
 
-      {/* Create Goal Modal */}
-      {showGoalModal && (
+      {/* Create / Edit Goal Modal */}
+      {(showGoalModal || editingGoal) && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 w-full max-w-md space-y-4 shadow-2xl animate-fade-in">
-            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Create Savings Goal</h3>
-            <form onSubmit={handleCreate} className="space-y-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 w-full max-w-md space-y-4 shadow-2xl animate-fade-in relative">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                {editingGoal ? 'Edit Savings Goal' : 'Create Savings Goal'}
+              </h3>
+              <button onClick={closeModals} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                <X size={20} />
+              </button>
+            </div>
+
+            {formError && (
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-semibold">
+                {formError}
+              </div>
+            )}
+
+            <form onSubmit={handleFormSubmit} className="space-y-4">
               <div>
                 <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 block mb-1">Goal Title</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Emergency Fund, New Car"
+                  placeholder="e.g. Emergency Fund, European Vacation"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-emerald-500"
@@ -243,12 +438,28 @@ export const GoalsPage: React.FC = () => {
                 </select>
               </div>
 
+              <div>
+                <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 block mb-1">Target Date (Optional)</label>
+                <input
+                  type="date"
+                  value={targetDate}
+                  onChange={(e) => setTargetDate(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
               <div className="flex justify-end gap-3 pt-2">
-                <Button type="button" variant="outline" onClick={() => setShowGoalModal(false)}>
+                <Button type="button" variant="outline" onClick={closeModals}>
                   Cancel
                 </Button>
-                <Button type="submit" variant="primary">
-                  Create Goal
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={createMutation.isPending || editMutation.isPending}
+                >
+                  {editingGoal
+                    ? editMutation.isPending ? 'Saving...' : 'Update Goal'
+                    : createMutation.isPending ? 'Saving...' : 'Create Goal'}
                 </Button>
               </div>
             </form>
@@ -259,9 +470,21 @@ export const GoalsPage: React.FC = () => {
       {/* Contribute Modal */}
       {showContribModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 w-full max-w-md space-y-4 shadow-2xl animate-fade-in">
-            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Add Goal Contribution</h3>
-            <form onSubmit={handleContribute} className="space-y-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 w-full max-w-md space-y-4 shadow-2xl animate-fade-in relative">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Add Goal Contribution</h3>
+              <button onClick={closeModals} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                <X size={20} />
+              </button>
+            </div>
+
+            {formError && (
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-semibold">
+                {formError}
+              </div>
+            )}
+
+            <form onSubmit={handleContributeSubmit} className="space-y-4">
               <div>
                 <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 block mb-1">Contribution Amount ($)</label>
                 <input
@@ -276,11 +499,15 @@ export const GoalsPage: React.FC = () => {
               </div>
 
               <div className="flex justify-end gap-3 pt-2">
-                <Button type="button" variant="outline" onClick={() => setShowContribModal(false)}>
+                <Button type="button" variant="outline" onClick={closeModals}>
                   Cancel
                 </Button>
-                <Button type="submit" variant="primary">
-                  Save Contribution
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={contributeMutation.isPending}
+                >
+                  {contributeMutation.isPending ? 'Saving...' : 'Save Contribution'}
                 </Button>
               </div>
             </form>

@@ -60,6 +60,43 @@ router.post('/', authenticate, async (req, res, next) => {
   }
 });
 
+// PUT /api/v1/goals/:id - Update goal details
+router.put('/:id', authenticate, async (req, res, next) => {
+  try {
+    const userId = (req as any).user.id;
+    const { id } = req.params;
+    const { title, targetAmount, currentAmount, targetDate, category, status } = req.body;
+
+    const existing = await prisma.goal.findFirst({
+      where: { id, userId, deletedAt: null },
+    });
+
+    if (!existing) {
+      throw new NotFoundError('Goal not found');
+    }
+
+    const newTarget = targetAmount !== undefined ? Number(targetAmount) : Number(existing.targetAmount);
+    const newCurrent = currentAmount !== undefined ? Number(currentAmount) : Number(existing.currentAmount);
+    const computedStatus = status !== undefined ? status : (newCurrent >= newTarget ? 'completed' : 'in_progress');
+
+    const updated = await prisma.goal.update({
+      where: { id },
+      data: {
+        title: title !== undefined ? title : existing.title,
+        targetAmount: newTarget,
+        currentAmount: newCurrent,
+        targetDate: targetDate ? new Date(targetDate) : existing.targetDate,
+        category: category !== undefined ? category : existing.category,
+        status: computedStatus,
+      },
+    });
+
+    sendSuccess(res, updated, 'Goal updated successfully');
+  } catch (err) {
+    next(err);
+  }
+});
+
 // PATCH /api/v1/goals/:id/contribute - Contribute funds to goal
 router.patch('/:id/contribute', authenticate, async (req, res, next) => {
   try {
