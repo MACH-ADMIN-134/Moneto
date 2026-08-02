@@ -19,8 +19,9 @@ import { RegisterPage } from './pages/RegisterPage';
 
 const queryClient = new QueryClient();
 
+// Protected Route Guard
 const ProtectedLayout: React.FC = () => {
-  const { isLoading } = useAuth();
+  const { user, isLoading } = useAuth();
 
   if (isLoading) {
     return (
@@ -28,6 +29,11 @@ const ProtectedLayout: React.FC = () => {
         Initializing Moneto Engine...
       </div>
     );
+  }
+
+  // Redirect unauthenticated users to Login page
+  if (!user) {
+    return <Navigate to="/login" replace />;
   }
 
   return (
