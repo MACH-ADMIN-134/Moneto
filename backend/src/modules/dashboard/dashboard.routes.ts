@@ -10,9 +10,10 @@ router.get('/', authenticate, async (req, res, next) => {
   try {
     const userId = (req as any).user.id;
 
-    // Accounts Net Balance
+    // Accounts Summary
     const accounts = await prisma.account.findMany({
       where: { userId, deletedAt: null },
+      orderBy: { balance: 'desc' },
     });
     const accountBalance = accounts.reduce((acc, curr) => acc + Number(curr.balance), 0);
 
@@ -46,15 +47,25 @@ router.get('/', authenticate, async (req, res, next) => {
       else if (tx.type === 'expense') monthlyExpenses += amt;
     }
 
-    // Pending Payables Count
-    const pendingPayablesCount = await prisma.payable.count({
-      where: { userId, status: 'pending', deletedAt: null },
+    // Lending Summary
+    const lendRequests = await prisma.lendRequest.findMany({
+      where: { userId, deletedAt: null },
     });
+    const totalLent = lendRequests
+      .filter((l) => l.type === 'lent' && l.status !== 'settled')
+      .reduce((sum, l) => sum + Number(l.principalAmount), 0);
+    const totalBorrowed = lendRequests
+      .filter((l) => l.type === 'borrowed' && l.status !== 'settled')
+      .reduce((sum, l) => sum + Number(l.principalAmount), 0);
+    const activeLoansCount = lendRequests.filter((l) => l.status === 'active').length;
 
-    // Active Loans Count
-    const activeLoansCount = await prisma.lendRequest.count({
-      where: { userId, status: 'active', deletedAt: null },
+    // Payables Summary
+    const payables = await prisma.payable.findMany({
+      where: { userId, deletedAt: null, status: 'pending' },
+      orderBy: { dueDate: 'asc' },
     });
+    const pendingPayablesCount = payables.length;
+    const totalPendingPayablesAmount = payables.reduce((sum, p) => sum + Number(p.amount), 0);
 
     // Recent 5 Transactions
     const recentTransactions = await prisma.transaction.findMany({
@@ -76,7 +87,21 @@ router.get('/', authenticate, async (req, res, next) => {
         pendingPayablesCount,
         activeLoansCount,
       },
-      accountsCount: accounts.length,
+      accountSummary: {
+        count: accounts.length,
+        totalBalance: accountBalance,
+        topAccounts: accounts.slice(0, 3),
+      },
+      lendingSummary: {
+        activeCount: activeLoansCount,
+        totalLent,
+        totalBorrowed,
+      },
+      payablesSummary: {
+        pendingCount: pendingPayablesCount,
+        totalPendingAmount: totalPendingPayablesAmount,
+        upcoming: payables.slice(0, 3),
+      },
       investmentsCount: investments.length,
       recentTransactions,
     }, 'Dashboard metrics retrieved successfully');
