@@ -10,10 +10,10 @@ const router = Router();
 router.get('/', authenticate, async (req, res, next) => {
   try {
     const userId = (req as any).user.id;
-    const { type, categoryId, accountId, search, page = '1', limit = '20' } = req.query;
+    const { type, categoryId, accountId, search, page = '1', limit = '50' } = req.query;
 
     const pageNum = parseInt(page as string, 10) || 1;
-    const limitNum = parseInt(limit as string, 10) || 20;
+    const limitNum = parseInt(limit as string, 10) || 50;
     const skip = (pageNum - 1) * limitNum;
 
     const where: any = { userId, deletedAt: null };
@@ -81,7 +81,7 @@ router.post('/', authenticate, async (req, res, next) => {
       },
     });
 
-    // Optionally update account balance
+    // Update account balance if linked
     if (accountId) {
       const numAmount = Number(amount);
       const balanceChange = (type || category.type) === 'income' ? numAmount : -numAmount;
@@ -92,6 +92,64 @@ router.post('/', authenticate, async (req, res, next) => {
     }
 
     sendSuccess(res, transaction, 'Transaction logged successfully', 201);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT /api/v1/transactions/:id - Update transaction
+router.put('/:id', authenticate, async (req, res, next) => {
+  try {
+    const userId = (req as any).user.id;
+    const { id } = req.params;
+    const { amount, currency, type, categoryId, accountId, description, transactionDate } = req.body;
+
+    const existing = await prisma.transaction.findFirst({
+      where: { id, userId, deletedAt: null },
+    });
+
+    if (!existing) {
+      throw new NotFoundError('Transaction not found');
+    }
+
+    // Reverse previous account balance adjustment if account was linked
+    if (existing.accountId) {
+      const oldAmount = Number(existing.amount);
+      const reverseChange = existing.type === 'income' ? -oldAmount : oldAmount;
+      await prisma.account.update({
+        where: { id: existing.accountId },
+        data: { balance: { increment: reverseChange } },
+      });
+    }
+
+    const updated = await prisma.transaction.update({
+      where: { id },
+      data: {
+        amount: amount !== undefined ? Number(amount) : existing.amount,
+        currency: currency !== undefined ? currency : existing.currency,
+        type: type !== undefined ? type : existing.type,
+        categoryId: categoryId !== undefined ? categoryId : existing.categoryId,
+        accountId: accountId !== undefined ? accountId : existing.accountId,
+        description: description !== undefined ? description : existing.description,
+        transactionDate: transactionDate ? new Date(transactionDate) : existing.transactionDate,
+      },
+      include: {
+        category: { select: { id: true, name: true, color: true, icon: true } },
+        account: { select: { id: true, name: true } },
+      },
+    });
+
+    // Apply new account balance adjustment if account is linked
+    if (updated.accountId) {
+      const newAmount = Number(updated.amount);
+      const newBalanceChange = updated.type === 'income' ? newAmount : -newAmount;
+      await prisma.account.update({
+        where: { id: updated.accountId },
+        data: { balance: { increment: newBalanceChange } },
+      });
+    }
+
+    sendSuccess(res, updated, 'Transaction updated successfully');
   } catch (err) {
     next(err);
   }
