@@ -56,7 +56,7 @@ router.get('/', authenticate, async (req, res, next) => {
   }
 });
 
-// POST /api/v1/budgets - Create or update budget for category
+// POST /api/v1/budgets - Create budget allocation
 router.post('/', authenticate, async (req, res, next) => {
   try {
     const userId = (req as any).user.id;
@@ -81,6 +81,39 @@ router.post('/', authenticate, async (req, res, next) => {
     });
 
     sendSuccess(res, budget, 'Budget created successfully', 201);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT /api/v1/budgets/:id - Update budget limit
+router.put('/:id', authenticate, async (req, res, next) => {
+  try {
+    const userId = (req as any).user.id;
+    const { id } = req.params;
+    const { categoryId, amount, period } = req.body;
+
+    const existing = await prisma.budget.findFirst({
+      where: { id, userId, deletedAt: null },
+    });
+
+    if (!existing) {
+      throw new NotFoundError('Budget not found');
+    }
+
+    const updated = await prisma.budget.update({
+      where: { id },
+      data: {
+        categoryId: categoryId !== undefined ? categoryId : existing.categoryId,
+        amount: amount !== undefined ? Number(amount) : existing.amount,
+        period: period !== undefined ? period : existing.period,
+      },
+      include: {
+        category: { select: { id: true, name: true, color: true, icon: true } },
+      },
+    });
+
+    sendSuccess(res, updated, 'Budget updated successfully');
   } catch (err) {
     next(err);
   }
