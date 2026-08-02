@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env.config.js';
-import { UnauthorizedError } from '../common/errors.js';
+import { UnauthorizedError, ForbiddenError } from '../common/errors.js';
 
 export interface AuthenticatedRequest extends Request {
   user?: {
@@ -27,4 +27,18 @@ export function authenticate(req: AuthenticatedRequest, _res: Response, next: Ne
   } catch (_err) {
     next(new UnauthorizedError('Invalid or expired access token'));
   }
+}
+
+export function authorize(roles: string[]) {
+  return (req: AuthenticatedRequest, _res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      return next(new UnauthorizedError('User authentication required'));
+    }
+
+    if (!roles.includes(req.user.role)) {
+      return next(new ForbiddenError('Insufficient permissions to access this resource'));
+    }
+
+    next();
+  };
 }

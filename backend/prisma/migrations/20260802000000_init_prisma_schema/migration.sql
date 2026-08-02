@@ -1,6 +1,6 @@
--- Moneto Enterprise Initial Prisma Migration (v0.1.0-alpha)
+-- Moneto Enterprise Initial Prisma Migration (v1.0.0)
 -- Created: 2026-08-02
--- This migration represents the baseline schema for all 12 enterprise tables.
+-- This migration represents the complete baseline schema for all enterprise tables.
 
 -- Enable Extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -45,7 +45,28 @@ CREATE INDEX "user_sessions_refresh_token_hash_idx" ON "user_sessions"("refresh_
 ALTER TABLE "user_sessions" ADD CONSTRAINT "user_sessions_user_id_fkey"
     FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- 3. CATEGORIES TABLE
+-- 3. ACCOUNTS TABLE
+CREATE TABLE "accounts" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "user_id" UUID NOT NULL,
+    "name" VARCHAR(128) NOT NULL,
+    "type" VARCHAR(32) NOT NULL,
+    "balance" DECIMAL(15,2) NOT NULL DEFAULT 0.00,
+    "currency" VARCHAR(3) NOT NULL DEFAULT 'USD',
+    "account_number" VARCHAR(64),
+    "institution" VARCHAR(128),
+    "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "deleted_at" TIMESTAMPTZ,
+
+    CONSTRAINT "accounts_pkey" PRIMARY KEY ("id")
+);
+CREATE INDEX "accounts_user_id_type_idx" ON "accounts"("user_id", "type");
+
+ALTER TABLE "accounts" ADD CONSTRAINT "accounts_user_id_fkey"
+    FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- 4. CATEGORIES TABLE
 CREATE TABLE "categories" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "user_id" UUID,
@@ -65,10 +86,11 @@ CREATE INDEX "categories_user_id_type_idx" ON "categories"("user_id", "type");
 ALTER TABLE "categories" ADD CONSTRAINT "categories_user_id_fkey"
     FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- 4. TRANSACTIONS TABLE
+-- 5. TRANSACTIONS TABLE
 CREATE TABLE "transactions" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "user_id" UUID NOT NULL,
+    "account_id" UUID,
     "category_id" UUID NOT NULL,
     "amount" DECIMAL(15,2) NOT NULL,
     "currency" VARCHAR(3) NOT NULL DEFAULT 'USD',
@@ -84,13 +106,39 @@ CREATE TABLE "transactions" (
 );
 CREATE INDEX "transactions_user_id_transaction_date_idx" ON "transactions"("user_id", "transaction_date" DESC);
 CREATE INDEX "transactions_category_id_idx" ON "transactions"("category_id");
+CREATE INDEX "transactions_account_id_idx" ON "transactions"("account_id");
 
 ALTER TABLE "transactions" ADD CONSTRAINT "transactions_user_id_fkey"
     FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "transactions" ADD CONSTRAINT "transactions_account_id_fkey"
+    FOREIGN KEY ("account_id") REFERENCES "accounts"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE "transactions" ADD CONSTRAINT "transactions_category_id_fkey"
     FOREIGN KEY ("category_id") REFERENCES "categories"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- 5. PAYABLES TABLE
+-- 6. BUDGETS TABLE
+CREATE TABLE "budgets" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "user_id" UUID NOT NULL,
+    "category_id" UUID NOT NULL,
+    "amount" DECIMAL(15,2) NOT NULL,
+    "currency" VARCHAR(3) NOT NULL DEFAULT 'USD',
+    "period" VARCHAR(32) NOT NULL DEFAULT 'monthly',
+    "start_date" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "end_date" TIMESTAMPTZ,
+    "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "deleted_at" TIMESTAMPTZ,
+
+    CONSTRAINT "budgets_pkey" PRIMARY KEY ("id")
+);
+CREATE INDEX "budgets_user_id_category_id_idx" ON "budgets"("user_id", "category_id");
+
+ALTER TABLE "budgets" ADD CONSTRAINT "budgets_user_id_fkey"
+    FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "budgets" ADD CONSTRAINT "budgets_category_id_fkey"
+    FOREIGN KEY ("category_id") REFERENCES "categories"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- 7. PAYABLES TABLE
 CREATE TABLE "payables" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "user_id" UUID NOT NULL,
@@ -113,7 +161,7 @@ CREATE INDEX "payables_due_date_idx" ON "payables"("due_date");
 ALTER TABLE "payables" ADD CONSTRAINT "payables_user_id_fkey"
     FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- 6. PAYABLE_PAYMENTS TABLE
+-- 8. PAYABLE_PAYMENTS TABLE
 CREATE TABLE "payable_payments" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "payable_id" UUID NOT NULL,
@@ -132,7 +180,7 @@ ALTER TABLE "payable_payments" ADD CONSTRAINT "payable_payments_payable_id_fkey"
 ALTER TABLE "payable_payments" ADD CONSTRAINT "payable_payments_transaction_id_fkey"
     FOREIGN KEY ("transaction_id") REFERENCES "transactions"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
--- 7. LEND_REQUESTS TABLE
+-- 9. LEND_REQUESTS TABLE
 CREATE TABLE "lend_requests" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "user_id" UUID NOT NULL,
@@ -156,7 +204,7 @@ CREATE INDEX "lend_requests_user_id_status_idx" ON "lend_requests"("user_id", "s
 ALTER TABLE "lend_requests" ADD CONSTRAINT "lend_requests_user_id_fkey"
     FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- 8. LEND_TRANSACTIONS TABLE
+-- 10. LEND_TRANSACTIONS TABLE
 CREATE TABLE "lend_transactions" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "lend_request_id" UUID NOT NULL,
@@ -173,7 +221,51 @@ CREATE INDEX "lend_transactions_lend_request_id_idx" ON "lend_transactions"("len
 ALTER TABLE "lend_transactions" ADD CONSTRAINT "lend_transactions_lend_request_id_fkey"
     FOREIGN KEY ("lend_request_id") REFERENCES "lend_requests"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- 9. USER_SETTINGS TABLE
+-- 11. INVESTMENTS TABLE
+CREATE TABLE "investments" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "user_id" UUID NOT NULL,
+    "name" VARCHAR(128) NOT NULL,
+    "symbol" VARCHAR(32),
+    "type" VARCHAR(32) NOT NULL,
+    "quantity" DECIMAL(15,4) NOT NULL,
+    "buy_price" DECIMAL(15,2) NOT NULL,
+    "current_price" DECIMAL(15,2) NOT NULL,
+    "currency" VARCHAR(3) NOT NULL DEFAULT 'USD',
+    "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "deleted_at" TIMESTAMPTZ,
+
+    CONSTRAINT "investments_pkey" PRIMARY KEY ("id")
+);
+CREATE INDEX "investments_user_id_type_idx" ON "investments"("user_id", "type");
+
+ALTER TABLE "investments" ADD CONSTRAINT "investments_user_id_fkey"
+    FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- 12. GOALS TABLE
+CREATE TABLE "goals" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "user_id" UUID NOT NULL,
+    "title" VARCHAR(128) NOT NULL,
+    "target_amount" DECIMAL(15,2) NOT NULL,
+    "current_amount" DECIMAL(15,2) NOT NULL DEFAULT 0.00,
+    "currency" VARCHAR(3) NOT NULL DEFAULT 'USD',
+    "target_date" TIMESTAMPTZ,
+    "category" VARCHAR(64) NOT NULL DEFAULT 'General',
+    "status" VARCHAR(32) NOT NULL DEFAULT 'in_progress',
+    "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "deleted_at" TIMESTAMPTZ,
+
+    CONSTRAINT "goals_pkey" PRIMARY KEY ("id")
+);
+CREATE INDEX "goals_user_id_status_idx" ON "goals"("user_id", "status");
+
+ALTER TABLE "goals" ADD CONSTRAINT "goals_user_id_fkey"
+    FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- 13. USER_SETTINGS TABLE
 CREATE TABLE "user_settings" (
     "user_id" UUID NOT NULL,
     "theme" VARCHAR(16) NOT NULL DEFAULT 'system',
@@ -189,7 +281,7 @@ CREATE TABLE "user_settings" (
 ALTER TABLE "user_settings" ADD CONSTRAINT "user_settings_user_id_fkey"
     FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- 10. NOTIFICATIONS TABLE
+-- 14. NOTIFICATIONS TABLE
 CREATE TABLE "notifications" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "user_id" UUID NOT NULL,
@@ -207,7 +299,7 @@ CREATE INDEX "notifications_user_id_is_read_idx" ON "notifications"("user_id", "
 ALTER TABLE "notifications" ADD CONSTRAINT "notifications_user_id_fkey"
     FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- 11. AUDIT_LOGS TABLE
+-- 15. AUDIT_LOGS TABLE
 CREATE TABLE "audit_logs" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "user_id" UUID,
@@ -228,7 +320,7 @@ CREATE INDEX "audit_logs_created_at_idx" ON "audit_logs"("created_at" DESC);
 ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_user_id_fkey"
     FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
--- 12. CONNECTIONS TABLE
+-- 16. CONNECTIONS TABLE
 CREATE TABLE "connections" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "user_id" UUID NOT NULL,

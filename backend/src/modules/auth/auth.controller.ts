@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { AuthService } from './auth.service.js';
 import { sendSuccess } from '../../common/response.js';
+import { prisma } from '../../config/database.config.js';
+import { NotFoundError } from '../../common/errors.js';
 
 const authService = new AuthService();
 
@@ -39,6 +41,33 @@ export class AuthController {
 
       const tokens = await authService.refreshTokenPair(refreshToken, ipAddress, userAgent);
       sendSuccess(res, tokens, 'Tokens refreshed successfully', 200);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getMe(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = (req as any).user?.id;
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          email: true,
+          fullName: true,
+          avatarUrl: true,
+          role: true,
+          status: true,
+          createdAt: true,
+          settings: true,
+        },
+      });
+
+      if (!user) {
+        throw new NotFoundError('User not found');
+      }
+
+      sendSuccess(res, user, 'User profile retrieved successfully');
     } catch (err) {
       next(err);
     }

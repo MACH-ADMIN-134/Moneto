@@ -1,52 +1,49 @@
 import { Router } from 'express';
-import { authenticate, AuthenticatedRequest } from '../../middleware/auth.middleware.js';
-import { CategoriesService } from './categories.service.js';
+import { authenticate } from '../../middleware/auth.middleware.js';
 import { sendSuccess } from '../../common/response.js';
+import { prisma } from '../../config/database.config.js';
 
 const router = Router();
-const categoriesService = new CategoriesService();
 
-// List Categories (System + User Custom)
-router.get('/', authenticate, async (req: AuthenticatedRequest, res, next) => {
+// GET /api/v1/categories - List system and user categories
+router.get('/', authenticate, async (req, res, next) => {
   try {
-    const type = req.query.type as string | undefined;
-    const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
-    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 50;
+    const userId = (req as any).user.id;
+    const categories = await prisma.category.findMany({
+      where: {
+        OR: [
+          { isSystem: true },
+          { userId },
+        ],
+        deletedAt: null,
+      },
+      orderBy: { name: 'asc' },
+    });
 
-    const result = await categoriesService.listCategories(req.user!.id, type, page, limit);
-    sendSuccess(res, result.items, 'Categories listed successfully', 200, { pagination: result.pagination });
+    sendSuccess(res, categories, 'Categories listed successfully');
   } catch (err) {
     next(err);
   }
 });
 
-// Create Custom User Category
-router.post('/', authenticate, async (req: AuthenticatedRequest, res, next) => {
+// POST /api/v1/categories - Create custom category
+router.post('/', authenticate, async (req, res, next) => {
   try {
+    const userId = (req as any).user.id;
     const { name, type, icon, color } = req.body;
-    const category = await categoriesService.createCategory(req.user!.id, name, type, icon, color);
-    sendSuccess(res, category, 'Custom category created successfully', 201);
-  } catch (err) {
-    next(err);
-  }
-});
 
-// Update Custom Category
-router.put('/:id', authenticate, async (req: AuthenticatedRequest, res, next) => {
-  try {
-    const { name, icon, color } = req.body;
-    const updated = await categoriesService.updateCategory(req.user!.id, req.params.id, name, icon, color);
-    sendSuccess(res, updated, 'Category updated successfully');
-  } catch (err) {
-    next(err);
-  }
-});
+    const category = await prisma.category.create({
+      data: {
+        userId,
+        name,
+        type: type || 'expense',
+        icon: icon || 'folder',
+        color: color || '#10B981',
+        isSystem: false,
+      },
+    });
 
-// Delete Category (Soft Delete)
-router.delete('/:id', authenticate, async (req: AuthenticatedRequest, res, next) => {
-  try {
-    await categoriesService.deleteCategory(req.user!.id, req.params.id);
-    sendSuccess(res, null, 'Category deleted successfully');
+    sendSuccess(res, category, 'Category created successfully', 201);
   } catch (err) {
     next(err);
   }

@@ -41,7 +41,7 @@ services:
       DIRECT_URL: postgresql://${DB_USER:-moneto_admin}:${DB_PASSWORD:-MonetoSecurePassword2026!}@postgres:5432/${DB_NAME_PROD:-moneto_prod}?schema=public
       JWT_SECRET: ${JWT_SECRET:-super_secret_moneto_jwt_access_key_change_in_production_2026}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-super_secret_moneto_jwt_refresh_key_change_in_production_2026}
-    command: sh -c "npx prisma migrate deploy && node dist/server.js"
+    command: sh -c "npx prisma migrate deploy && npx prisma db seed && node dist/server.js"
     depends_on:
       postgres:
         condition: service_healthy

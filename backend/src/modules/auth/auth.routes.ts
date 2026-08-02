@@ -11,6 +11,7 @@ const controller = new AuthController();
 router.post('/register', authRateLimiter, validateRequest(registerSchema), (req, res, next) => controller.register(req, res, next));
 router.post('/login', authRateLimiter, validateRequest(loginSchema), (req, res, next) => controller.login(req, res, next));
 router.post('/refresh', validateRequest(refreshTokenSchema), (req, res, next) => controller.refreshToken(req, res, next));
+router.get('/me', authenticate, (req, res, next) => controller.getMe(req, res, next));
 router.post('/logout', authenticate, (req, res, next) => controller.logout(req, res, next));
 
 export default router;

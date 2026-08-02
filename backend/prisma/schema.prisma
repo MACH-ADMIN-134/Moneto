@@ -1,4 +1,4 @@
-// Moneto Enterprise Prisma Schema (v0.1.0-alpha)
+// Moneto Enterprise Prisma Schema (v1.0.0)
 // Datasource: PostgreSQL | Generator: Prisma Client JS
 
 generator client {
@@ -25,10 +25,14 @@ model User {
 
   // Relations
   sessions      UserSession[]
+  accounts      Account[]
   categories    Category[]
   transactions  Transaction[]
-  payables      Payable[]
+  budgets       Budget[]
   lendRequests  LendRequest[]
+  investments   Investment[]
+  goals         Goal[]
+  payables      Payable[]
   settings      UserSetting?
   notifications Notification[]
   auditLogs     AuditLog[]
@@ -41,15 +45,15 @@ model User {
 
 // 2. USER SESSIONS MODEL
 model UserSession {
-  id                String   @id @default(uuid()) @db.Uuid
-  userId            String   @map("user_id") @db.Uuid
-  refreshTokenHash  String   @map("refresh_token_hash") @db.VarChar(255)
-  ipAddress         String   @map("ip_address") @db.VarChar(45)
-  userAgent         String   @map("user_agent") @db.Text
-  isRevoked         Boolean  @default(false) @map("is_revoked")
-  expiresAt         DateTime @map("expires_at") @db.Timestamptz()
-  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz()
-  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  refreshTokenHash String   @map("refresh_token_hash") @db.VarChar(255)
+  ipAddress        String   @map("ip_address") @db.VarChar(45)
+  userAgent        String   @map("user_agent") @db.Text
+  isRevoked        Boolean  @default(false) @map("is_revoked")
+  expiresAt        DateTime @map("expires_at") @db.Timestamptz()
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz()
 
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -59,7 +63,29 @@ model UserSession {
   @@map("user_sessions")
 }
 
-// 3. CATEGORIES MODEL
+// 3. ACCOUNTS MODEL
+model Account {
+  id            String    @id @default(uuid()) @db.Uuid
+  userId        String    @map("user_id") @db.Uuid
+  name          String    @db.VarChar(128)
+  type          String    @db.VarChar(32) // checking | savings | credit_card | investment | cash
+  balance       Decimal   @default(0.00) @db.Decimal(15, 2)
+  currency      String    @default("USD") @db.VarChar(3)
+  accountNumber String?   @map("account_number") @db.VarChar(64)
+  institution   String?   @db.VarChar(128)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt     DateTime? @map("deleted_at") @db.Timestamptz()
+
+  // Relations
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@index([userId, type])
+  @@map("accounts")
+}
+
+// 4. CATEGORIES MODEL
 model Category {
   id        String    @id @default(uuid()) @db.Uuid
   userId    String?   @map("user_id") @db.Uuid
@@ -75,15 +101,17 @@ model Category {
   // Relations
   user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions Transaction[]
+  budgets      Budget[]
 
   @@index([userId, type])
   @@map("categories")
 }
 
-// 4. TRANSACTIONS MODEL
+// 5. TRANSACTIONS MODEL
 model Transaction {
   id              String    @id @default(uuid()) @db.Uuid
   userId          String    @map("user_id") @db.Uuid
+  accountId       String?   @map("account_id") @db.Uuid
   categoryId      String    @map("category_id") @db.Uuid
   amount          Decimal   @db.Decimal(15, 2)
   currency        String    @default("USD") @db.VarChar(3)
@@ -97,15 +125,39 @@ model Transaction {
 
   // Relations
   user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account         Account?         @relation(fields: [accountId], references: [id], onDelete: SetNull)
   category        Category         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   payablePayments PayablePayment[]
 
   @@index([userId, transactionDate(sort: Desc)])
   @@index([categoryId])
+  @@index([accountId])
   @@map("transactions")
 }
 
-// 5. PAYABLES MODEL
+// 6. BUDGETS MODEL
+model Budget {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  categoryId String    @map("category_id") @db.Uuid
+  amount     Decimal   @db.Decimal(15, 2)
+  currency   String    @default("USD") @db.VarChar(3)
+  period     String    @default("monthly") @db.VarChar(32) // monthly | yearly
+  startDate  DateTime  @map("start_date") @db.Timestamptz()
+  endDate    DateTime? @map("end_date") @db.Timestamptz()
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt  DateTime? @map("deleted_at") @db.Timestamptz()
+
+  // Relations
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([userId, categoryId])
+  @@map("budgets")
+}
+
+// 7. PAYABLES MODEL
 model Payable {
   id         String    @id @default(uuid()) @db.Uuid
   userId     String    @map("user_id") @db.Uuid
@@ -129,7 +181,7 @@ model Payable {
   @@map("payables")
 }
 
-// 6. PAYABLE PAYMENTS MODEL
+// 8. PAYABLE PAYMENTS MODEL
 model PayablePayment {
   id            String   @id @default(uuid()) @db.Uuid
   payableId     String   @map("payable_id") @db.Uuid
@@ -147,7 +199,7 @@ model PayablePayment {
   @@map("payable_payments")
 }
 
-// 7. LEND REQUESTS MODEL
+// 9. LEND REQUESTS MODEL
 model LendRequest {
   id                  String    @id @default(uuid()) @db.Uuid
   userId              String    @map("user_id") @db.Uuid
@@ -172,7 +224,7 @@ model LendRequest {
   @@map("lend_requests")
 }
 
-// 8. LEND TRANSACTIONS MODEL
+// 10. LEND TRANSACTIONS MODEL
 model LendTransaction {
   id            String   @id @default(uuid()) @db.Uuid
   lendRequestId String   @map("lend_request_id") @db.Uuid
@@ -189,7 +241,51 @@ model LendTransaction {
   @@map("lend_transactions")
 }
 
-// 9. USER SETTINGS MODEL
+// 11. INVESTMENTS MODEL
+model Investment {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  name         String    @db.VarChar(128)
+  symbol       String?   @db.VarChar(32)
+  type         String    @db.VarChar(32) // stock | crypto | etf | real_estate | bond | mutual_fund
+  quantity     Decimal   @db.Decimal(15, 4)
+  buyPrice     Decimal   @map("buy_price") @db.Decimal(15, 2)
+  currentPrice Decimal   @map("current_price") @db.Decimal(15, 2)
+  currency     String    @default("USD") @db.VarChar(3)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz()
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+  @@map("investments")
+}
+
+// 12. GOALS MODEL
+model Goal {
+  id            String    @id @default(uuid()) @db.Uuid
+  userId        String    @map("user_id") @db.Uuid
+  title         String    @db.VarChar(128)
+  targetAmount  Decimal   @map("target_amount") @db.Decimal(15, 2)
+  currentAmount Decimal   @default(0.00) @map("current_amount") @db.Decimal(15, 2)
+  currency      String    @default("USD") @db.VarChar(3)
+  targetDate    DateTime? @map("target_date") @db.Timestamptz()
+  category      String    @default("General") @db.VarChar(64)
+  status        String    @default("in_progress") @db.VarChar(32) // in_progress | completed | cancelled
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt     DateTime? @map("deleted_at") @db.Timestamptz()
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@map("goals")
+}
+
+// 13. USER SETTINGS MODEL
 model UserSetting {
   userId             String   @id @map("user_id") @db.Uuid
   theme              String   @default("system") @db.VarChar(16)
@@ -205,7 +301,7 @@ model UserSetting {
   @@map("user_settings")
 }
 
-// 10. NOTIFICATIONS MODEL
+// 14. NOTIFICATIONS MODEL
 model Notification {
   id        String   @id @default(uuid()) @db.Uuid
   userId    String   @map("user_id") @db.Uuid
@@ -223,7 +319,7 @@ model Notification {
   @@map("notifications")
 }
 
-// 11. AUDIT LOGS MODEL
+// 15. AUDIT LOGS MODEL
 model AuditLog {
   id         String   @id @default(uuid()) @db.Uuid
   userId     String?  @map("user_id") @db.Uuid
@@ -244,7 +340,7 @@ model AuditLog {
   @@map("audit_logs")
 }
 
-// 12. CONNECTIONS MODEL
+// 16. CONNECTIONS MODEL
 model Connection {
   id                 String    @id @default(uuid()) @db.Uuid
   userId             String    @map("user_id") @db.Uuid
